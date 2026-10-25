@@ -1,7 +1,7 @@
 import { readOsz } from './osz.js';
 import { convertToPsych } from './converter.js';
 import { buildModZip } from './zipBuilder.js';
-import { uploadToStorage } from './storage.js';
+import { uploadToStorage, uploadToProxy } from './storage.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -47,12 +47,14 @@ function slugify(s) {
 
 // storage settings
 function loadStorSettings() {
+  $('proxyUrl').value = localStorage.getItem('osuconv_proxy') || '';
   $('storToken').value = localStorage.getItem('osuconv_token') || '';
   $('storRepo').value = localStorage.getItem('osuconv_repo') || 'VenulousThyDuckulous/raw-file-storgae-cuz-yes-data';
   $('storBranch').value = localStorage.getItem('osuconv_branch') || 'main';
   $('storPrefix').value = localStorage.getItem('osuconv_prefix') || 'storage';
 }
 function saveStorSettings() {
+  localStorage.setItem('osuconv_proxy', $('proxyUrl').value.trim());
   localStorage.setItem('osuconv_token', $('storToken').value.trim());
   localStorage.setItem('osuconv_repo', $('storRepo').value.trim());
   localStorage.setItem('osuconv_branch', $('storBranch').value.trim() || 'main');
@@ -219,18 +221,23 @@ $('downloadBtn').addEventListener('click', () => {
 
 $('uploadBtn').addEventListener('click', async () => {
   if (!state.modBlob) { showError('Convert first.'); return; }
-  const token = localStorage.getItem('osuconv_token') || '';
-  const repo = localStorage.getItem('osuconv_repo') || '';
-  const branch = localStorage.getItem('osuconv_branch') || 'main';
-  const prefix = localStorage.getItem('osuconv_prefix') || 'storage';
-  if (!token || !repo) { showError('Set storage token/repo first.'); return; }
+  const proxyUrl = localStorage.getItem('osuconv_proxy') || '';
   clearErrors();
   try {
     const file = new File([state.modBlob], state.modFileName || 'mod.zip', { type: 'application/zip' });
-    const { manifestUrl } = await uploadToStorage({
-      token, repo, branch, prefix, file,
-      onProgress: (p, t) => setProgress(p, t),
-    });
+    let manifestUrl;
+    if (proxyUrl) {
+      const r = await uploadToProxy({ proxyUrl, file, onProgress: (p, t) => setProgress(p, t) });
+      manifestUrl = r.manifestUrl;
+    } else {
+      const token = localStorage.getItem('osuconv_token') || '';
+      const repo = localStorage.getItem('osuconv_repo') || '';
+      const branch = localStorage.getItem('osuconv_branch') || 'main';
+      const prefix = localStorage.getItem('osuconv_prefix') || 'storage';
+      if (!token || !repo) { showError('Set proxy URL or storage token/repo first.'); return; }
+      const r = await uploadToStorage({ token, repo, branch, prefix, file, onProgress: (p, t) => setProgress(p, t) });
+      manifestUrl = r.manifestUrl;
+    }
     const shareUrl = 'https://venulousthyduckulous.github.io/raw-file-storage-for-smth/?manifest=' + encodeURIComponent(manifestUrl);
     state.shareUrl = shareUrl;
     $('shareUrl').value = shareUrl;
@@ -241,6 +248,16 @@ $('uploadBtn').addEventListener('click', async () => {
     showError('Upload failed: ' + e.message);
     setProgress(0, 'Failed');
   }
+});
+
+$('manualGenBtn').addEventListener('click', () => {
+  const m = $('manualManifest').value.trim();
+  if (!m) { showError('Paste a manifest URL.'); return; }
+  const shareUrl = 'https://venulousthyduckulous.github.io/raw-file-storage-for-smth/?manifest=' + encodeURIComponent(m);
+  state.shareUrl = shareUrl;
+  $('shareUrl').value = shareUrl;
+  $('shareBox').hidden = false;
+  $('copyShareBtn').hidden = false;
 });
 
 $('copyShareBtn').addEventListener('click', async () => {

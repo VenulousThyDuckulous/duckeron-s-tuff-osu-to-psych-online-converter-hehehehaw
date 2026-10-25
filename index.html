@@ -70,10 +70,22 @@
     </section>
 
     <section class="card">
+      <h2>Manual publish (fallback)</h2>
+      <p class="hint">If automatic upload isn't available, download the ZIP, upload it yourself (storage site or GitHub), then paste the manifest URL here to generate a share link.</p>
+      <div class="row">
+        <input type="text" id="manualManifest" placeholder="https://raw.githubusercontent.com/.../manifest.json" style="flex:1;min-width:240px" />
+        <button id="manualGenBtn" class="btn secondary">Generate share link</button>
+      </div>
+    </section>
+
+    <section class="card">
       <h2>Storage settings (optional, for sharing)</h2>
       <p class="hint">Token stays in your browser only. Needed only if you use Upload to storage.</p>
       <div class="grid">
-        <label>GitHub token
+        <label>Upload proxy URL (optional, recommended for shared use)
+          <input type="text" id="proxyUrl" placeholder="https://your-worker.workers.dev" />
+        </label>
+        <label>GitHub token (only if not using proxy)
           <input type="password" id="storToken" />
         </label>
         <label>Storage repo (owner/repo)

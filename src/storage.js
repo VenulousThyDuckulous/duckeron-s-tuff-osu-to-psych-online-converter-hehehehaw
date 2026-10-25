@@ -1,3 +1,18 @@
+export async function uploadToProxy({ proxyUrl, file, onProgress }) {
+  if (onProgress) onProgress(5, 'Uploading to proxy…');
+  const form = new FormData();
+  form.append('file', file, file.name);
+  const res = await fetch(proxyUrl, { method: 'POST', body: form });
+  if (onProgress) onProgress(90, 'Processing…');
+  if (!res.ok) {
+    const e = await res.json().catch(() => ({}));
+    throw new Error(e.error || 'Proxy upload failed (' + res.status + ')');
+  }
+  const data = await res.json();
+  if (onProgress) onProgress(100, 'Done');
+  return { manifestUrl: data.manifestUrl, manifest: data.manifest };
+}
+
 export async function uploadToStorage({ token, repo, branch, prefix, file, onProgress }) {
   const parseRepo = (s) => {
     const p = s.split('/');
