@@ -1,9 +1,8 @@
-// Cloudflare Worker: proxies file uploads to a GitHub storage repo.
+// Cloudflare Worker: uploads a file to a GitHub Release and returns a direct download URL.
+// No 100MB limit (GitHub Releases support up to 2GB per asset).
 // Set secrets/vars in Cloudflare:
 //   GITHUB_TOKEN  (secret)  - PAT with Contents: Read/Write on STORAGE_REPO
-//   STORAGE_REPO  (var)     - owner/repo
-//   STORAGE_BRANCH (var)    - main
-//   STORAGE_PREFIX (var)    - storage
+//   STORAGE_REPO  (var)     - owner/repo (should be PUBLIC for direct links)
 //   ALLOWED_ORIGIN (var)    - * or your site origin
 
 export default {
@@ -13,9 +12,7 @@ export default {
     const corsOrigin = allowed === '*' ? '*' : (origin === allowed ? origin : allowed);
 
     if (request.method === 'OPTIONS') {
-      return new Response(null, {
-        headers: corsHeaders(corsOrigin),
-      });
+      return new Response(null, { headers: corsHeaders(corsOrigin) });
     }
     if (request.method !== 'POST') {
       return json({ error: 'Method not allowed' }, 405, corsOrigin);
@@ -34,35 +31,19 @@ export default {
 
     const token = env.GITHUB_TOKEN;
     const repo = env.STORAGE_REPO;
-    const branch = env.STORAGE_BRANCH || 'main';
-    const prefix = env.STORAGE_PREFIX || 'storage';
     if (!token || !repo) {
       return json({ error: 'Worker not configured (GITHUB_TOKEN/STORAGE_REPO)' }, 500, corsOrigin);
     }
-
     const [owner, repoName] = repo.split('/');
     if (!owner || !repoName) {
       return json({ error: 'STORAGE_REPO must be owner/repo' }, 500, corsOrigin);
     }
 
-    const safeName = (file.name || 'file').replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 60) || 'file';
-    const id = `${safeName}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-
-    const encodePath = (p) => p.split('/').map(encodeURIComponent).join('/');
-    const uint8ToBase64 = (uint8) => {
-      const chunk = 0x8000;
-      let binary = '';
-      for (let i = 0; i < uint8.length; i += chunk) {
-        const sub = uint8.subarray(i, Math.min(i + chunk, uint8.length));
-        binary += String.fromCharCode.apply(null, sub);
-      }
-      return btoa(binary);
-    };
-
-    const putFile = async (path, contentB64, message) => {
-      const url = `https://api.github.com/repos/${owner}/${repoName}/contents/${encodePath(path)}`;
-      const res = await fetch(url, {
-        method: 'PUT',
+    try {
+      const releaseTag = `upload-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      // Create a release
+      const relRes = await fetch(`https://api.github.com/repos/${owner}/${repoName}/releases`, {
+        method: 'POST',
         headers: {
           'User-Agent': 'osu-storage-proxy',
           Authorization: `Bearer ${token}`,
@@ -70,65 +51,44 @@ export default {
           'Content-Type': 'application/json',
           'X-GitHub-Api-Version': '2022-11-28',
         },
-        body: JSON.stringify({ message, content: contentB64, branch }),
+        body: JSON.stringify({
+          tag_name: releaseTag,
+          name: file.name || 'upload',
+          body: 'Uploaded via osu converter',
+          draft: false,
+          prerelease: false,
+        }),
       });
-      if (!res.ok) {
-        const text = await res.text().catch(() => '');
-        let msg = 'Upload failed (' + res.status + ')';
-        try { const e = JSON.parse(text); if (e.message) msg = e.message; } catch {}
-        throw new Error(msg + ' | body: ' + text.slice(0, 300));
+      if (!relRes.ok) {
+        const text = await relRes.text().catch(() => '');
+        throw new Error('Release create failed (' + relRes.status + '): ' + text.slice(0, 300));
       }
-      return res.json();
-    };
+      const release = await relRes.json();
 
-    // Single-file path for small mods (direct link, works in Psych Online downloader)
-    const SINGLE_LIMIT = 50 * 1024 * 1024;
-    try {
-      if (file.size <= SINGLE_LIMIT) {
-        const path = `${prefix}/${id}/${safeName}`;
-        const buf = await file.arrayBuffer();
-        const b64 = uint8ToBase64(new Uint8Array(buf));
-        await putFile(path, b64, `Upload ${file.name}`);
-        const directUrl = `https://raw.githubusercontent.com/${owner}/${repoName}/${branch}/${path}`;
-        return json({ directUrl, manifestUrl: null }, 200, corsOrigin);
+      // Upload asset (binary, no base64)
+      const assetName = (file.name || 'upload.zip').replace(/[^a-zA-Z0-9._-]/g, '_');
+      const uploadUrl = `https://uploads.github.com/repos/${owner}/${repoName}/releases/${release.id}/assets?name=${encodeURIComponent(assetName)}`;
+      const assetRes = await fetch(uploadUrl, {
+        method: 'POST',
+        headers: {
+          'User-Agent': 'osu-storage-proxy',
+          Authorization: `Bearer ${token}`,
+          'Content-Type': file.type || 'application/octet-stream',
+          'Content-Length': String(file.size),
+        },
+        body: file,
+      });
+      if (!assetRes.ok) {
+        const text = await assetRes.text().catch(() => '');
+        throw new Error('Asset upload failed (' + assetRes.status + '): ' + text.slice(0, 300));
       }
+      const asset = await assetRes.json();
+      const directUrl = asset.browser_download_url;
+      if (!directUrl) throw new Error('No download URL returned');
 
-      // Chunked path for large files (browser reconstruction only)
-      const chunkSize = 20 * 1024 * 1024;
-      const totalChunks = Math.max(1, Math.ceil(file.size / chunkSize));
-      const basePrefix = [prefix, id].filter(Boolean).join('/');
-      const chunkUrls = [];
-      for (let i = 0; i < totalChunks; i++) {
-        const start = i * chunkSize;
-        const end = Math.min(file.size, start + chunkSize);
-        const blob = file.slice(start, end);
-        const buf = await blob.arrayBuffer();
-        const b64 = uint8ToBase64(new Uint8Array(buf));
-        const chunkPath = `${basePrefix}/chunk_${String(i).padStart(4, '0')}.bin`;
-        await putFile(chunkPath, b64, `Upload chunk ${i + 1}/${totalChunks}`);
-        chunkUrls.push(`https://raw.githubusercontent.com/${owner}/${repoName}/${branch}/${chunkPath}`);
-      }
-      const manifest = {
-        name: file.name,
-        size: file.size,
-        type: file.type || 'application/octet-stream',
-        chunkSize,
-        chunkCount: totalChunks,
-        chunks: Array.from({ length: totalChunks }, (_, i) => `chunk_${String(i).padStart(4, '0')}.bin`),
-        chunkUrls,
-        uploadedAt: new Date().toISOString(),
-        storageRepo: `${owner}/${repoName}`,
-        branch,
-        prefix: basePrefix,
-      };
-      const manifestB64 = btoa(unescape(encodeURIComponent(JSON.stringify(manifest, null, 2))));
-      const manifestPath = `${basePrefix}/manifest.json`;
-      await putFile(manifestPath, manifestB64, 'Add manifest');
-      const manifestUrl = `https://raw.githubusercontent.com/${owner}/${repoName}/${branch}/${manifestPath}`;
-
-      return json({ directUrl: null, manifestUrl, manifest }, 200, corsOrigin);
+      return json({ directUrl }, 200, corsOrigin);
     } catch (e) {
-      return json({ error: e.message || 'Upload failed', tokenPresent: !!env.GITHUB_TOKEN, tokenPrefix: env.GITHUB_TOKEN ? env.GITHUB_TOKEN.slice(0, 4) : null }, 500, corsOrigin);
+      return json({ error: e.message || 'Upload failed', tokenPresent: !!env.GITHUB_TOKEN }, 500, corsOrigin);
     }
   },
 };
