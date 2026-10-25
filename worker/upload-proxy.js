@@ -45,11 +45,8 @@ export default {
       return json({ error: 'STORAGE_REPO must be owner/repo' }, 500, corsOrigin);
     }
 
-    const chunkSize = 20 * 1024 * 1024;
-    const totalChunks = Math.max(1, Math.ceil(file.size / chunkSize));
     const safeName = (file.name || 'file').replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 60) || 'file';
     const id = `${safeName}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-    const basePrefix = [prefix, id].filter(Boolean).join('/');
 
     const encodePath = (p) => p.split('/').map(encodeURIComponent).join('/');
     const uint8ToBase64 = (uint8) => {
@@ -84,8 +81,23 @@ export default {
       return res.json();
     };
 
-    const chunkUrls = [];
+    // Single-file path for small mods (direct link, works in Psych Online downloader)
+    const SINGLE_LIMIT = 50 * 1024 * 1024;
     try {
+      if (file.size <= SINGLE_LIMIT) {
+        const path = `${prefix}/${id}/${safeName}`;
+        const buf = await file.arrayBuffer();
+        const b64 = uint8ToBase64(new Uint8Array(buf));
+        await putFile(path, b64, `Upload ${file.name}`);
+        const directUrl = `https://raw.githubusercontent.com/${owner}/${repoName}/${branch}/${path}`;
+        return json({ directUrl, manifestUrl: null }, 200, corsOrigin);
+      }
+
+      // Chunked path for large files (browser reconstruction only)
+      const chunkSize = 20 * 1024 * 1024;
+      const totalChunks = Math.max(1, Math.ceil(file.size / chunkSize));
+      const basePrefix = [prefix, id].filter(Boolean).join('/');
+      const chunkUrls = [];
       for (let i = 0; i < totalChunks; i++) {
         const start = i * chunkSize;
         const end = Math.min(file.size, start + chunkSize);
@@ -96,7 +108,6 @@ export default {
         await putFile(chunkPath, b64, `Upload chunk ${i + 1}/${totalChunks}`);
         chunkUrls.push(`https://raw.githubusercontent.com/${owner}/${repoName}/${branch}/${chunkPath}`);
       }
-
       const manifest = {
         name: file.name,
         size: file.size,
@@ -115,7 +126,7 @@ export default {
       await putFile(manifestPath, manifestB64, 'Add manifest');
       const manifestUrl = `https://raw.githubusercontent.com/${owner}/${repoName}/${branch}/${manifestPath}`;
 
-      return json({ manifestUrl, manifest }, 200, corsOrigin);
+      return json({ directUrl: null, manifestUrl, manifest }, 200, corsOrigin);
     } catch (e) {
       return json({ error: e.message || 'Upload failed', tokenPresent: !!env.GITHUB_TOKEN, tokenPrefix: env.GITHUB_TOKEN ? env.GITHUB_TOKEN.slice(0, 4) : null }, 500, corsOrigin);
     }

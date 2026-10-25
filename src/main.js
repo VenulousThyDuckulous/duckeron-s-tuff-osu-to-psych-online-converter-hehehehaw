@@ -216,8 +216,14 @@ $('uploadBtn').addEventListener('click', async () => {
   try {
     const file = new File([state.modBlob], state.modFileName || 'mod.zip', { type: 'application/zip' });
     const r = await uploadToProxy({ proxyUrl: DEFAULT_PROXY_URL, file, onProgress: (p, t) => setProgress(p, t) });
-    const manifestUrl = r.manifestUrl;
-    const shareUrl = 'https://venulousthyduckulous.github.io/raw-file-storage-for-smth/?manifest=' + encodeURIComponent(manifestUrl);
+    let shareUrl;
+    if (r.directUrl) {
+      shareUrl = r.directUrl;
+      showWarning('Direct file link created (works in Psych Online downloader).');
+    } else {
+      shareUrl = 'https://venulousthyduckulous.github.io/raw-file-storage-for-smth/?manifest=' + encodeURIComponent(r.manifestUrl);
+      showWarning('File was chunked (too large). Share link is browser-only and will not work in Psych Online downloader.');
+    }
     state.shareUrl = shareUrl;
     $('shareUrl').value = shareUrl;
     $('shareBox').hidden = false;
