@@ -1,4 +1,4 @@
-# osu!mania 4K → FNF Psych Engine 1.0.4 Converter
+# osu!mania 4K → Psych Online Converter
 
 Browser-based converter that turns osu!mania 4K `.osz` beatmaps into playable FNF Psych Engine 1.0.4 mods.
 

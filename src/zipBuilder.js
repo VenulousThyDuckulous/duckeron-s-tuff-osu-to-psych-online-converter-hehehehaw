@@ -17,7 +17,7 @@ export async function buildModZip({ songSlug, title, artist, charts, audioBlob, 
     version: '1.0.0',
     engine: 'Psych Engine 1.0.4',
   }, null, 2));
-  zip.file(`${root}/README.txt`, `Psych Engine 1.0.4 mod generated from osu!mania 4K.
+  zip.file(`${root}/README.txt`, `Psych Online mod generated from osu!mania 4K.
 
 Song: ${title}
 Artist: ${artist || 'Unknown'}
