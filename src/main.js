@@ -204,7 +204,7 @@ $('downloadBtn').addEventListener('click', () => {
 });
 
 // Set this to your deployed Cloudflare Worker URL to enable one-click sharing for everyone.
-const DEFAULT_PROXY_URL = '';
+const DEFAULT_PROXY_URL = 'https://little-breeze-f841.provenance22.workers.dev';
 
 $('uploadBtn').addEventListener('click', async () => {
   if (!state.modBlob) { showError('Convert first.'); return; }
