@@ -128,7 +128,7 @@ export function convertToPsych(parsed, opts = {}) {
 
   const title = parsed.title;
   const bpm0 = getBPMAt(parsed.timingPoints, 0) || 120;
-  const uninherited = parsed.timingPoints.filter(tp => tp.uninherited).sort((a, b) => a.time - b.time);
+  const uninherited = parsed.timingPoints.filter(tp => tp.uninherited).slice().sort((a, b) => a.time - b.time);
 
   // build sections by 4-beat measures, cutting at BPM changes
   const songLength = parsed.hitObjects.length
