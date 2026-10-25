@@ -10,7 +10,7 @@ export async function uploadToProxy({ proxyUrl, file, onProgress }) {
   }
   const data = await res.json();
   if (onProgress) onProgress(100, 'Done');
-  return { manifestUrl: data.manifestUrl, manifest: data.manifest };
+  return { directUrl: data.directUrl, manifestUrl: data.manifestUrl, manifest: data.manifest };
 }
 
 export async function uploadToStorage({ token, repo, branch, prefix, file, onProgress }) {
