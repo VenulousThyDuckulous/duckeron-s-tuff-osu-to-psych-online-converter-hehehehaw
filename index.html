@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>osu!mania 4K → Psych Engine Converter</title>
+  <meta name="description" content="Convert osu!mania 4K beatmaps to FNF Psych Engine 1.0.4 mods in your browser." />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="hero">
+    <div class="container">
+      <h1>osu!mania 4K → Psych Engine</h1>
+      <p class="subtitle">Browser-based converter for Friday Night Funkin' Psych Engine 1.0.4 mods.</p>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="card">
+      <h2>Upload .osz</h2>
+      <div id="dropzone" class="dropzone">
+        <input type="file" id="fileInput" accept=".osz" hidden />
+        <p>Drag &amp; drop an <code>.osz</code> file here, or <button id="browseBtn" class="link">browse</button></p>
+        <p class="small">Only osu!mania 4K beatmaps are supported.</p>
+      </div>
+      <div class="row">
+        <button id="resetBtn" class="btn secondary">Reset</button>
+      </div>
+    </section>
+
+    <section class="card" id="infoCard" hidden>
+      <h2>Beatmap info</h2>
+      <div id="info"></div>
+      <h3>Select difficulties</h3>
+      <div id="diffList"></div>
+      <div class="grid">
+        <label>Song slug (folder name)
+          <input type="text" id="slugInput" />
+        </label>
+      </div>
+      <div class="row">
+        <button id="convertBtn" class="btn primary">Convert</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Progress</h2>
+      <div class="progress-wrap"><div id="progressBar" class="progress-bar" style="width:0%"></div></div>
+      <p id="progressText" class="small"></p>
+      <div id="errors" class="errors"></div>
+      <div id="warnings" class="warnings"></div>
+    </section>
+
+    <section class="card" id="resultCard" hidden>
+      <h2>Result</h2>
+      <p id="resultSummary" class="small"></p>
+      <div class="row">
+        <button id="downloadBtn" class="btn primary">Download mod ZIP</button>
+        <button id="uploadBtn" class="btn secondary">Upload to storage</button>
+        <button id="copyShareBtn" class="btn secondary" hidden>Copy share link</button>
+      </div>
+      <div id="shareBox" class="sharebox" hidden>
+        <label>Shareable link
+          <input type="text" id="shareUrl" readonly />
+        </label>
+        <div class="row">
+          <button id="openShareBtn" class="btn secondary">Open link</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Storage settings (optional, for sharing)</h2>
+      <p class="hint">Token stays in your browser only. Needed only if you use Upload to storage.</p>
+      <div class="grid">
+        <label>GitHub token
+          <input type="password" id="storToken" />
+        </label>
+        <label>Storage repo (owner/repo)
+          <input type="text" id="storRepo" value="VenulousThyDuckulous/raw-file-storgae-cuz-yes-data" />
+        </label>
+        <label>Branch
+          <input type="text" id="storBranch" value="main" />
+        </label>
+        <label>Folder prefix
+          <input type="text" id="storPrefix" value="storage" />
+        </label>
+      </div>
+      <div class="row">
+        <button id="saveStorBtn" class="btn secondary">Save</button>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="container"><p>osu!mania 4K → Psych Engine converter — browser side.</p></div>
+  </footer>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>
+EOF
