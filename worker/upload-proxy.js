@@ -134,4 +134,3 @@ function json(obj, status, origin) {
     headers: { 'Content-Type': 'application/json', ...corsHeaders(origin || '*') },
   });
 }
-EOF
