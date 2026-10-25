@@ -75,8 +75,10 @@ export default {
         body: JSON.stringify({ message, content: contentB64, branch }),
       });
       if (!res.ok) {
-        const e = await res.json().catch(() => ({}));
-        throw new Error(e.message || 'Upload failed (' + res.status + ')');
+        const text = await res.text().catch(() => '');
+        let msg = 'Upload failed (' + res.status + ')';
+        try { const e = JSON.parse(text); if (e.message) msg = e.message; } catch {}
+        throw new Error(msg + ' | body: ' + text.slice(0, 300));
       }
       return res.json();
     };
@@ -114,7 +116,7 @@ export default {
 
       return json({ manifestUrl, manifest }, 200, corsOrigin);
     } catch (e) {
-      return json({ error: e.message || 'Upload failed' }, 500, corsOrigin);
+      return json({ error: e.message || 'Upload failed', tokenPresent: !!env.GITHUB_TOKEN, tokenPrefix: env.GITHUB_TOKEN ? env.GITHUB_TOKEN.slice(0, 4) : null }, 500, corsOrigin);
     }
   },
 };
