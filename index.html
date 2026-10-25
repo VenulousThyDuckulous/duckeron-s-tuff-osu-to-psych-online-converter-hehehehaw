@@ -79,28 +79,8 @@
     </section>
 
     <section class="card">
-      <h2>Storage settings (optional, for sharing)</h2>
-      <p class="hint">Token stays in your browser only. Needed only if you use Upload to storage.</p>
-      <div class="grid">
-        <label>Upload proxy URL (optional, recommended for shared use)
-          <input type="text" id="proxyUrl" placeholder="https://your-worker.workers.dev" />
-        </label>
-        <label>GitHub token (only if not using proxy)
-          <input type="password" id="storToken" />
-        </label>
-        <label>Storage repo (owner/repo)
-          <input type="text" id="storRepo" value="VenulousThyDuckulous/raw-file-storgae-cuz-yes-data" />
-        </label>
-        <label>Branch
-          <input type="text" id="storBranch" value="main" />
-        </label>
-        <label>Folder prefix
-          <input type="text" id="storPrefix" value="storage" />
-        </label>
-      </div>
-      <div class="row">
-        <button id="saveStorBtn" class="btn secondary">Save</button>
-      </div>
+      <h2>Sharing configuration (site owner)</h2>
+      <p class="hint">One-click sharing is enabled when <code>DEFAULT_PROXY_URL</code> in <code>src/main.js</code> points to a deployed upload proxy (see <code>worker/README.md</code>). Visitors do not need to enter any tokens.</p>
     </section>
   </main>
 

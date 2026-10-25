@@ -46,23 +46,7 @@ function slugify(s) {
 }
 
 // storage settings
-function loadStorSettings() {
-  $('proxyUrl').value = localStorage.getItem('osuconv_proxy') || '';
-  $('storToken').value = localStorage.getItem('osuconv_token') || '';
-  $('storRepo').value = localStorage.getItem('osuconv_repo') || 'VenulousThyDuckulous/raw-file-storgae-cuz-yes-data';
-  $('storBranch').value = localStorage.getItem('osuconv_branch') || 'main';
-  $('storPrefix').value = localStorage.getItem('osuconv_prefix') || 'storage';
-}
-function saveStorSettings() {
-  localStorage.setItem('osuconv_proxy', $('proxyUrl').value.trim());
-  localStorage.setItem('osuconv_token', $('storToken').value.trim());
-  localStorage.setItem('osuconv_repo', $('storRepo').value.trim());
-  localStorage.setItem('osuconv_branch', $('storBranch').value.trim() || 'main');
-  localStorage.setItem('osuconv_prefix', $('storPrefix').value.trim() || 'storage');
-}
-
-loadStorSettings();
-$('saveStorBtn').addEventListener('click', () => { saveStorSettings(); alert('Saved'); });
+// Storage settings are configured by the site owner via DEFAULT_PROXY_URL.
 
 // dropzone
 const dropzone = $('dropzone');
@@ -219,25 +203,20 @@ $('downloadBtn').addEventListener('click', () => {
   URL.revokeObjectURL(a.href);
 });
 
+// Set this to your deployed Cloudflare Worker URL to enable one-click sharing for everyone.
+const DEFAULT_PROXY_URL = '';
+
 $('uploadBtn').addEventListener('click', async () => {
   if (!state.modBlob) { showError('Convert first.'); return; }
-  const proxyUrl = localStorage.getItem('osuconv_proxy') || '';
   clearErrors();
+  if (!DEFAULT_PROXY_URL) {
+    showError('Sharing is not configured yet. Use the manual publish fallback below, or set DEFAULT_PROXY_URL in src/main.js.');
+    return;
+  }
   try {
     const file = new File([state.modBlob], state.modFileName || 'mod.zip', { type: 'application/zip' });
-    let manifestUrl;
-    if (proxyUrl) {
-      const r = await uploadToProxy({ proxyUrl, file, onProgress: (p, t) => setProgress(p, t) });
-      manifestUrl = r.manifestUrl;
-    } else {
-      const token = localStorage.getItem('osuconv_token') || '';
-      const repo = localStorage.getItem('osuconv_repo') || '';
-      const branch = localStorage.getItem('osuconv_branch') || 'main';
-      const prefix = localStorage.getItem('osuconv_prefix') || 'storage';
-      if (!token || !repo) { showError('Set proxy URL or storage token/repo first.'); return; }
-      const r = await uploadToStorage({ token, repo, branch, prefix, file, onProgress: (p, t) => setProgress(p, t) });
-      manifestUrl = r.manifestUrl;
-    }
+    const r = await uploadToProxy({ proxyUrl: DEFAULT_PROXY_URL, file, onProgress: (p, t) => setProgress(p, t) });
+    const manifestUrl = r.manifestUrl;
     const shareUrl = 'https://venulousthyduckulous.github.io/raw-file-storage-for-smth/?manifest=' + encodeURIComponent(manifestUrl);
     state.shareUrl = shareUrl;
     $('shareUrl').value = shareUrl;
@@ -248,6 +227,7 @@ $('uploadBtn').addEventListener('click', async () => {
     showError('Upload failed: ' + e.message);
     setProgress(0, 'Failed');
   }
+  return;
 });
 
 $('manualGenBtn').addEventListener('click', () => {
