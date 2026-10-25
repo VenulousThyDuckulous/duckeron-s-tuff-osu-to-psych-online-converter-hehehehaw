@@ -67,6 +67,7 @@ export default {
       const res = await fetch(url, {
         method: 'PUT',
         headers: {
+          'User-Agent': 'osu-storage-proxy',
           Authorization: `Bearer ${token}`,
           Accept: 'application/vnd.github+json',
           'Content-Type': 'application/json',
